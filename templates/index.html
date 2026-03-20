@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Video Downloader</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0e0e0e;
+      --surface: #181818;
+      --surface2: #222222;
+      --border: rgba(255,255,255,0.08);
+      --border-focus: rgba(255,255,255,0.2);
+      --text: #f0f0f0;
+      --muted: #666;
+      --muted2: #444;
+      --accent: #ffffff;
+      --mono: 'Courier New', monospace;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+
+    .wrap { width: 100%; max-width: 580px; }
+
+    /* Header */
+    .header { margin-bottom: 2.5rem; }
+    .header h1 {
+      font-size: 22px;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 5px;
+      letter-spacing: -0.01em;
+    }
+    .header p { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+    /* Main card */
+    .card {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: 14px;
+      padding: 1.5rem;
+    }
+
+    .field-label {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .input-row { display: flex; gap: 8px; }
+
+    .input-row input {
+      flex: 1;
+      height: 42px;
+      padding: 0 14px;
+      border: 0.5px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface2);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .input-row input:focus { border-color: var(--border-focus); }
+    .input-row input::placeholder { color: var(--muted2); }
+
+    .btn {
+      height: 42px;
+      padding: 0 20px;
+      border-radius: 8px;
+      border: none;
+      background: #f0f0f0;
+      color: #111;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: opacity 0.15s, transform 0.1s;
+      flex-shrink: 0;
+    }
+    .btn:hover { opacity: 0.88; }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+
+    /* Divider */
+    .divider {
+      height: 0.5px;
+      background: var(--border);
+      margin: 1.25rem 0;
+    }
+
+    /* Status area */
+    .status-area { min-height: 0; }
+
+    /* Idle state — supported sites */
+    .sites-label { font-size: 11px; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 10px; }
+    .tags { display: flex; flex-wrap: wrap; gap: 5px; }
+    .tag {
+      font-size: 11px;
+      color: var(--muted);
+      background: var(--surface2);
+      border: 0.5px solid var(--border);
+      border-radius: 99px;
+      padding: 3px 10px;
+    }
+
+    /* Progress state */
+    .progress-block { display: none; }
+    .progress-block.visible { display: block; }
+
+    .progress-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .progress-label { font-size: 13px; color: var(--text); font-weight: 500; }
+    .progress-pct { font-size: 13px; color: var(--muted); font-family: var(--mono); }
+
+    .progress-bar-bg {
+      height: 3px;
+      background: var(--surface2);
+      border-radius: 99px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: #f0f0f0;
+      border-radius: 99px;
+      width: 0%;
+      transition: width 0.4s ease;
+    }
+
+    .log-box {
+      background: var(--surface2);
+      border: 0.5px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.7;
+      max-height: 120px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--muted2) transparent;
+    }
+    .log-box .log-line { color: #888; }
+    .log-box .log-line.active { color: var(--text); }
+
+    /* Done state */
+    .done-block { display: none; }
+    .done-block.visible { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+    .done-info { flex: 1; min-width: 0; }
+    .done-check {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.07);
+      border: 0.5px solid rgba(255,255,255,0.15);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      font-size: 13px;
+    }
+    .done-filename {
+      font-size: 12px;
+      color: var(--muted);
+      font-family: var(--mono);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 4px;
+    }
+    .done-title { font-size: 13px; color: var(--text); font-weight: 500; }
+
+    .save-btn {
+      height: 36px;
+      padding: 0 16px;
+      border-radius: 7px;
+      border: 0.5px solid var(--border-focus);
+      background: transparent;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s;
+      flex-shrink: 0;
+    }
+    .save-btn:hover { background: rgba(255,255,255,0.06); }
+
+    /* Error state */
+    .error-block { display: none; }
+    .error-block.visible {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      background: rgba(255,60,60,0.06);
+      border: 0.5px solid rgba(255,60,60,0.2);
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+    .error-icon { font-size: 14px; flex-shrink: 0; padding-top: 1px; }
+    .error-msg { font-size: 12px; color: #f87171; line-height: 1.5; word-break: break-word; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <h1>Video downloader</h1>
+    <p>Paste a URL from YouTube, TikTok, Instagram, Twitter/X, Vimeo and 1000+ more.</p>
+  </div>
+
+  <div class="card">
+    <span class="field-label">Video URL</span>
+    <div class="input-row">
+      <input id="vd-url" type="url" placeholder="https://youtube.com/watch?v=..." autocomplete="off" spellcheck="false" />
+      <button class="btn" id="vd-btn" onclick="handleDownload()">Download</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Idle: supported sites -->
+    <div id="idle-block">
+      <p class="sites-label">Supported sites</p>
+      <div class="tags">
+        <span class="tag">YouTube</span>
+        <span class="tag">TikTok</span>
+        <span class="tag">Instagram</span>
+        <span class="tag">Twitter / X</span>
+        <span class="tag">Vimeo</span>
+        <span class="tag">Facebook</span>
+        <span class="tag">Reddit</span>
+        <span class="tag">Twitch</span>
+        <span class="tag">SoundCloud</span>
+        <span class="tag">+ 1000 more</span>
+      </div>
+    </div>
+
+    <!-- Progress -->
+    <div class="progress-block" id="progress-block">
+      <div class="progress-header">
+        <span class="progress-label" id="progress-label">Fetching video…</span>
+        <span class="progress-pct" id="progress-pct"></span>
+      </div>
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" id="progress-bar"></div>
+      </div>
+      <div class="log-box" id="log-box">
+        <div class="log-line active" id="log-current">Starting download…</div>
+      </div>
+    </div>
+
+    <!-- Done -->
+    <div class="done-block" id="done-block">
+      <div class="done-check">✓</div>
+      <div class="done-info">
+        <div class="done-title" id="done-title">Download complete</div>
+        <div class="done-filename" id="done-filename"></div>
+      </div>
+      <a class="save-btn" id="save-link" href="#" download>
+        ↓ Save file
+      </a>
+    </div>
+
+    <!-- Error -->
+    <div class="error-block" id="error-block">
+      <span class="error-icon">!</span>
+      <span class="error-msg" id="error-msg"></span>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const states = ['idle-block','progress-block','done-block','error-block'];
+
+  function show(id) {
+    states.forEach(s => {
+      const el = document.getElementById(s);
+      if (s === id) { el.classList.add('visible'); el.style.display = ''; }
+      else { el.classList.remove('visible'); if (s !== 'idle-block') el.style.display = 'none'; }
+    });
+    document.getElementById('idle-block').style.display = (id === 'idle-block') ? '' : 'none';
+  }
+
+  function setProgress(pct, label) {
+    document.getElementById('progress-bar').style.width = pct + '%';
+    document.getElementById('progress-pct').textContent = pct > 0 ? pct + '%' : '';
+    if (label) document.getElementById('progress-label').textContent = label;
+  }
+
+  function addLog(msg) {
+    const box = document.getElementById('log-box');
+    const prev = box.querySelector('.log-line.active');
+    if (prev) prev.classList.remove('active');
+    const line = document.createElement('div');
+    line.className = 'log-line active';
+    line.textContent = msg;
+    box.appendChild(line);
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function simulateProgress(steps) {
+    let i = 0;
+    return new Promise(resolve => {
+      const tick = () => {
+        if (i >= steps.length) { resolve(); return; }
+        const [pct, label, log] = steps[i++];
+        setProgress(pct, label);
+        if (log) addLog(log);
+        setTimeout(tick, 600 + Math.random() * 400);
+      };
+      tick();
+    });
+  }
+
+  async function handleDownload() {
+    const url = document.getElementById('vd-url').value.trim();
+    if (!url) {
+      show('error-block');
+      document.getElementById('error-msg').textContent = 'Please enter a video URL.';
+      return;
+    }
+
+    const btn = document.getElementById('vd-btn');
+    btn.disabled = true;
+    btn.textContent = 'Working…';
+
+    // Reset log
+    document.getElementById('log-box').innerHTML = '<div class="log-line active">Connecting to server…</div>';
+    document.getElementById('progress-bar').style.width = '0%';
+    document.getElementById('progress-pct').textContent = '';
+    document.getElementById('progress-label').textContent = 'Starting…';
+    show('progress-block');
+
+    // Simulate realistic progress steps while request is in flight
+    const progressSteps = [
+      [8,  'Resolving URL…',          'Resolving URL…'],
+      [18, 'Extracting video info…',  'Fetching metadata from site…'],
+      [30, 'Selecting format…',       'Selecting best available format…'],
+      [45, 'Downloading…',            'Downloading video stream…'],
+      [62, 'Downloading…',            'Downloading audio stream…'],
+      [78, 'Processing…',             'Merging streams…'],
+      [90, 'Finalising…',             'Writing file to disk…'],
+    ];
+
+    let stepIdx = 0;
+    const progressTimer = setInterval(() => {
+      if (stepIdx < progressSteps.length) {
+        const [pct, label, log] = progressSteps[stepIdx++];
+        setProgress(pct, label);
+        addLog(log);
+      }
+    }, 1200);
+
+    try {
+      const body = new FormData();
+      body.append('url', url);
+
+      const res = await fetch('/download', { method: 'POST', body });
+      clearInterval(progressTimer);
+      const data = await res.json();
+
+      if (data.success) {
+        setProgress(100, 'Complete');
+        addLog('Done! File ready.');
+        await new Promise(r => setTimeout(r, 500));
+
+        document.getElementById('done-title').textContent = 'Download complete';
+        document.getElementById('done-filename').textContent = data.display_name;
+        document.getElementById('save-link').href = data.download_url;
+        document.getElementById('save-link').setAttribute('download', data.display_name);
+        show('done-block');
+      } else {
+        show('error-block');
+        document.getElementById('error-msg').textContent = data.error || 'Download failed.';
+      }
+    } catch (err) {
+      clearInterval(progressTimer);
+      show('error-block');
+      document.getElementById('error-msg').textContent = 'Network error — could not reach the server.';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Download';
+    }
+  }
+
+  document.getElementById('vd-url').addEventListener('keydown', e => {
+    if (e.key === 'Enter') handleDownload();
+  });
+</script>
+</body>
+</html>
