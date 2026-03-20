@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Video Downloader</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f5f5f3;
+      --surface: #ffffff;
+      --border: rgba(0,0,0,0.1);
+      --border-hover: rgba(0,0,0,0.25);
+      --text: #111;
+      --muted: #888;
+      --success-bg: #f0faf4;
+      --success-border: rgba(0,160,80,0.3);
+      --success-text: #1a7a45;
+      --danger-bg: #fff0f0;
+      --danger-border: rgba(200,0,0,0.25);
+      --danger-text: #b00;
+      --mono: 'Courier New', monospace;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+
+    .wrap { width: 100%; max-width: 620px; }
+
+    .hero { margin-bottom: 2rem; }
+    .hero h1 { font-size: 28px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+    .hero p { font-size: 14px; color: var(--muted); line-height: 1.5; }
+    .hero code {
+      font-family: var(--mono);
+      font-size: 12px;
+      background: rgba(0,0,0,0.06);
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .field-label { font-size: 12px; color: var(--muted); margin-bottom: 8px; display: block; }
+
+    .input-row { display: flex; gap: 8px; }
+    .input-row input {
+      flex: 1;
+      height: 40px;
+      padding: 0 12px;
+      border: 0.5px solid var(--border);
+      border-radius: 8px;
+      background: #fafafa;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .input-row input:focus { border-color: var(--border-hover); }
+    .input-row input::placeholder { color: #bbb; }
+
+    .btn {
+      height: 40px;
+      padding: 0 18px;
+      border-radius: 8px;
+      border: none;
+      background: var(--text);
+      color: var(--surface);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn:hover { opacity: 0.82; }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+    .status { margin-top: 1rem; min-height: 20px; font-size: 13px; }
+
+    .loading { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+    .spinner {
+      width: 14px; height: 14px;
+      border: 1.5px solid #ddd;
+      border-top-color: #555;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .result {
+      background: var(--success-bg);
+      border: 0.5px solid var(--success-border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .result-name {
+      font-size: 13px;
+      color: var(--success-text);
+      font-family: var(--mono);
+      word-break: break-all;
+      flex: 1;
+    }
+    .save-btn {
+      height: 32px;
+      padding: 0 14px;
+      border-radius: 6px;
+      border: 0.5px solid var(--success-border);
+      background: var(--surface);
+      color: var(--success-text);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+    }
+    .save-btn:hover { background: var(--success-bg); }
+
+    .error {
+      background: var(--danger-bg);
+      border: 0.5px solid var(--danger-border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 13px;
+      color: var(--danger-text);
+      word-break: break-word;
+    }
+
+    .divider { height: 0.5px; background: var(--border); margin: 1.25rem 0; }
+    .section-title { font-size: 12px; font-weight: 500; color: var(--muted); margin-bottom: 10px; }
+
+    .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tag {
+      font-size: 12px;
+      color: var(--muted);
+      background: #f0f0ee;
+      border: 0.5px solid var(--border);
+      border-radius: 99px;
+      padding: 3px 10px;
+    }
+
+    .steps { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .step { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; }
+    .step-num {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: #f0f0ee;
+      border: 0.5px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 500;
+      flex-shrink: 0;
+      color: var(--muted);
+    }
+    .step-text { padding-top: 2px; line-height: 1.5; color: var(--text); }
+    .step-text code {
+      font-family: var(--mono);
+      font-size: 11px;
+      background: rgba(0,0,0,0.05);
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+
+    .code-block {
+      background: #f7f7f5;
+      border: 0.5px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text);
+      overflow-x: auto;
+      white-space: pre;
+      line-height: 1.7;
+      margin: 8px 0 14px;
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <h1>Video downloader</h1>
+    <p>Paste any video URL to download it. Powered by <code>yt-dlp</code> — supports YouTube, TikTok, Instagram, Vimeo, Twitter/X and 1000+ more.</p>
+  </div>
+
+  <div class="card">
+    <span class="field-label">Video URL</span>
+    <div class="input-row">
+      <input id="vd-url" type="url" placeholder="https://youtube.com/watch?v=..." autocomplete="off" spellcheck="false" />
+      <button class="btn" id="vd-btn" onclick="handleDownload()">Download</button>
+    </div>
+    <div class="status" id="vd-status"></div>
+
+    <div class="divider"></div>
+    <p class="section-title">Supported sites</p>
+    <div class="tags">
+      <span class="tag">YouTube</span>
+      <span class="tag">TikTok</span>
+      <span class="tag">Instagram</span>
+      <span class="tag">Twitter / X</span>
+      <span class="tag">Vimeo</span>
+      <span class="tag">Facebook</span>
+      <span class="tag">Reddit</span>
+      <span class="tag">Twitch</span>
+      <span class="tag">SoundCloud</span>
+      <span class="tag">+ 1000 more</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="section-title">Run locally</p>
+    <ol class="steps">
+      <li class="step"><span class="step-num">1</span><span class="step-text">Install dependencies</span></li>
+    </ol>
+    <div class="code-block">pip install -r requirements.txt</div>
+    <ol class="steps">
+      <li class="step"><span class="step-num">2</span><span class="step-text">Start the server</span></li>
+    </ol>
+    <div class="code-block">uvicorn main:app --reload</div>
+    <ol class="steps">
+      <li class="step"><span class="step-num">3</span><span class="step-text">Open <code>http://localhost:8000</code> in your browser</span></li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <p class="section-title">Deploy to Render</p>
+    <ol class="steps">
+      <li class="step"><span class="step-num">1</span><span class="step-text">Push this project to a GitHub repository</span></li>
+      <li class="step"><span class="step-num">2</span><span class="step-text">Go to <strong>render.com</strong> → New → Web Service</span></li>
+      <li class="step"><span class="step-num">3</span><span class="step-text">Connect your repo — Render auto-reads <code>render.yaml</code></span></li>
+      <li class="step"><span class="step-num">4</span><span class="step-text">Click Deploy. Live in ~2 minutes.</span></li>
+    </ol>
+  </div>
+
+</div>
+<script>
+  function handleDownload() {
+    const url = document.getElementById('vd-url').value.trim();
+    const status = document.getElementById('vd-status');
+    const btn = document.getElementById('vd-btn');
+    if (!url) { status.innerHTML = '<div class="error">Please enter a URL.</div>'; return; }
+
+    btn.disabled = true;
+    btn.textContent = 'Fetching...';
+    status.innerHTML = '<div class="loading"><div class="spinner"></div><span>Downloading — this may take a moment...</span></div>';
+
+    const body = new FormData();
+    body.append('url', url);
+
+    fetch('/download', { method: 'POST', body })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          status.innerHTML = `<div class="result"><span class="result-name">${esc(data.display_name)}</span><a class="save-btn" href="${esc(data.download_url)}" download>Save file</a></div>`;
+        } else {
+          status.innerHTML = `<div class="error">${esc(data.error)}</div>`;
+        }
+      })
+      .catch(() => { status.innerHTML = '<div class="error">Network error. Is the server running?</div>'; })
+      .finally(() => { btn.disabled = false; btn.textContent = 'Download'; });
+  }
+
+  document.getElementById('vd-url').addEventListener('keydown', e => {
+    if (e.key === 'Enter') handleDownload();
+  });
+
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+</script>
+</body>
+</html>
